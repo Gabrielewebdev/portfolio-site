@@ -1,0 +1,42 @@
+name: Deploy portfolio
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - 'site/**'
+      - '.github/workflows/deploy.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  id-token: write
+
+concurrency:
+  group: portfolio-production
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Verify site files
+        run: test -s site/index.html
+
+      - name: Authenticate to AWS using OIDC
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: arn:aws:iam::726862573245:role/GitHubPortfolioDeploy
+          aws-region: us-east-1
+
+      - name: Upload site to S3
+        run: aws s3 sync ./site s3://portfolio-site-sitebucket-pgkzwhwskysf --delete
+
+      - name: Refresh CloudFront cache
+        run: aws cloudfront create-invalidation --distribution-id EF9OT4HGWOBC0 --paths "/*"
