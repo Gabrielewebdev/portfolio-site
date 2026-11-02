@@ -21,6 +21,8 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    env:
+      AWS_REGION: us-east-1
 
     steps:
       - name: Checkout repository
@@ -35,8 +37,23 @@ jobs:
           role-to-assume: arn:aws:iam::726862573245:role/GitHubPortfolioDeploy
           aws-region: us-east-1
 
+      - name: Read infrastructure outputs
+        shell: bash
+        run: |
+          set -euo pipefail
+          outputs=$(aws cloudformation describe-stacks \
+            --stack-name portfolio-site \
+            --query 'Stacks[0].Outputs' \
+            --output json)
+
+          bucket=$(jq -er '.[] | select(.OutputKey == "BucketName") | .OutputValue' <<< "$outputs")
+          distribution=$(jq -er '.[] | select(.OutputKey == "DistributionId") | .OutputValue' <<< "$outputs")
+
+          echo "SITE_BUCKET=$bucket" >> "$GITHUB_ENV"
+          echo "DISTRIBUTION_ID=$distribution" >> "$GITHUB_ENV"
+
       - name: Upload site to S3
-        run: aws s3 sync ./site s3://portfolio-site-sitebucket-pgkzwhwskysf --delete
+        run: aws s3 sync ./site "s3://$SITE_BUCKET" --delete
 
       - name: Refresh CloudFront cache
-        run: aws cloudfront create-invalidation --distribution-id EF9OT4HGWOBC0 --paths "/*"
+        run: aws cloudfront create-invalidation --distribution-id "$DISTRIBUTION_ID" --paths "/*"
