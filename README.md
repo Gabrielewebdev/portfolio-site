@@ -31,92 +31,53 @@ flowchart TD
 
 ### Prerequisites
 
-- AWS account and authenticated AWS CLI.
-- Git and a GitHub repository.
-- A registered domain and a public Route 53 hosted zone.
-- Permissions to manage the resources defined in `template.yaml`.
+- AWS CLI, Bash, Git and an authenticated AWS profile.
+- A registered domain and correctly delegated public Route 53 hosted zone.
+- An existing GitHub OIDC provider and `GitHubPortfolioDeploy` role.
+- A role trust policy restricted to this repository's actual OIDC subject and main branch.
+- Deployment permissions for CloudFormation, S3, CloudFront, ACM, Route 53
+  and inline policy management on the deployment role.
 
-This project uses the AWS CLI profile `portfolio` and region `us-east-1`.
+Defaults in this repository target my AWS account and domain. Change them
+before using the project in another account.
 
-### Create the infrastructure
+The OIDC provider and role trust configuration are external prerequisites.
+CloudFormation manages the role's `PortfolioStackDeployment` permissions
+policy, scoped to the stack, website bucket and CloudFront distribution.
 
-Run from the repository root:
-
-```bash
-aws cloudformation deploy \
-  --template-file template.yaml \
-  --stack-name portfolio-site \
-  --parameter-overrides \
-    DomainName=gabriele-giancane.com \
-    HostedZoneId=Z00426862HEY3D1Y8X8LH \
-  --region us-east-1 \
-  --profile portfolio
-```
-
-Replace the domain and hosted zone ID when deploying in another account.
-
-CloudFormation creates the bucket, OAC, CloudFront distribution, ACM certificate and DNS alias records. Certificate validation and CloudFront deployment can take several minutes.
-
-Display the stack outputs:
-
-```bash
-aws cloudformation describe-stacks \
-  --stack-name portfolio-site \
-  --query "Stacks[0].Outputs" \
-  --output table \
-  --region us-east-1 \
-  --profile portfolio
-```
-
-### Configure GitHub Actions authentication
-
-The following resources were configured separately in IAM and are not included in `template.yaml`:
-
-1. An OIDC provider:
-   - Provider URL: `https://token.actions.githubusercontent.com`
-   - Audience: `sts.amazonaws.com`
-2. The `GitHubPortfolioDeploy` IAM role.
-3. A trust policy allowing `sts:AssumeRoleWithWebIdentity` only for the intended repository and `main` branch.
-4. A permissions policy allowing:
-   - `s3:ListBucket` on the website bucket.
-   - `s3:GetObject`, `s3:PutObject` and `s3:DeleteObject` on its objects.
-   - `cloudfront:CreateInvalidation` on the website distribution.
-
-The working trust policy checks the audience and this repository's actual OIDC subject:
+The verified OIDC subject for this repository is:
 
 ```text
 repo:Gabrielewebdev@147814155/portfolio-site@1441781686:ref:refs/heads/main
 ```
 
-For a different repository, inspect its actual token claims before configuring the trust policy. Do not assume the subject has the same format.
+For another repository, inspect its actual claims rather than reusing this subject.
 
-The workflow requires:
+### Create or update infrastructure and publish
 
-```yaml
-permissions:
-  contents: read
-  id-token: write
+From the repository root:
+
+```bash
+bash scripts/deploy.sh
 ```
 
-Update the role ARN, bucket name and distribution ID in `.github/workflows/deploy.yml` when deploying a separate copy.
+The script uses profile `portfolio` and region `us-east-1` by default.
+It deploys the template, reads the stack outputs, uploads the website and
+requests a CloudFront invalidation. It also works when infrastructure
+has no changes.
+
+Domain and hosted zone parameters have defaults in `template.yaml`.
+Certificate validation and CloudFront provisioning can take several minutes.
+
+### Continuous deployment
+
+Push changes under `site/` or to `.github/workflows/deploy.yml` to `main`.
+GitHub Actions authenticates through OIDC, reads the stack outputs,
+synchronizes the site to S3 and requests cache invalidation.
 
 No AWS access keys are stored in GitHub secrets.
-
-### Publish website updates
-
-Push changes under `site/` to `main`.
-
-The workflow:
-
-1. Checks out the repository.
-2. Checks that `site/index.html` exists and is not empty.
-3. Assumes the IAM role through OIDC.
-4. Synchronizes `site/` to S3 using `--delete`.
-5. Requests a CloudFront cache invalidation.
-
-Changes to the workflow also trigger a deployment. A manual run is available through `workflow_dispatch`.
-
-Infrastructure changes require a separate CloudFormation deployment.
+Infrastructure changes require running the deployment script separately.
+The workflow does not wait for invalidation completion.
 
 ## Testing
 
@@ -195,45 +156,35 @@ If the website displays old content, check that the S3 upload succeeded and insp
 
 ## Cleanup and Recreation
 
-The live portfolio is intended to remain online. The following commands remove it.
-
-First empty the website bucket. This permanently deletes its current website files:
+To remove the live website:
 
 ```bash
-aws s3 rm s3://portfolio-site-sitebucket-pgkzwhwskysf \
-  --recursive \
-  --region us-east-1 \
-  --profile portfolio
+bash scripts/destroy.sh
 ```
 
-Then request stack deletion:
+The script shows the AWS identity and target bucket, requires typing
+`portfolio-site`, empties the non-versioned bucket, deletes the stack
+and waits for deletion to complete. This takes the website offline.
+
+Domain registration, the hosted zone, the OIDC provider and deployment
+role remain outside the stack. The stack-managed deployment permissions
+policy is deleted with the stack.
+
+To recreate the stack and upload the website:
 
 ```bash
-aws cloudformation delete-stack \
-  --stack-name portfolio-site \
-  --region us-east-1 \
-  --profile portfolio
+bash scripts/deploy.sh
 ```
 
-Wait for deletion to finish:
+The workflow reads the new bucket and distribution identifiers from
+CloudFormation. Its resource permissions are also generated by the template.
 
-```bash
-aws cloudformation wait stack-delete-complete \
-  --stack-name portfolio-site \
-  --region us-east-1 \
-  --profile portfolio
-```
-
-Domain registration, the existing hosted zone and manually configured IAM resources are outside this stack and remain in the account.
-
-To recreate the infrastructure, run the deployment command again. Then update the deployment workflow and IAM permissions with the new bucket name and distribution ID, and publish the website files.
-
-A complete deletion and recreation has not yet been tested.
+Full deletion and recreation have not yet been tested.
+These commands recreate the application stack, not an entire AWS account.
 
 ## Next Steps
 
-- Manage the GitHub OIDC role and permissions through infrastructure as code.
-- Remove hardcoded deployment resource identifiers from the workflow.
-- Automate cleanup and recreation.
+- Test a complete deletion and recreation during a planned maintenance window.
+- Manage the external OIDC bootstrap through infrastructure as code.
 - Add automated CloudFormation validation.
 - Complete the Notes serverless and EC2 projects and link their repositories.

@@ -125,6 +125,31 @@ Resources:
             HostedZoneId: Z2FDTNDATAQYW2
             EvaluateTargetHealth: false
 
+  GitHubDeploymentPolicy:
+    Type: AWS::IAM::Policy
+    Properties:
+      PolicyName: PortfolioStackDeployment
+      Roles:
+        - GitHubPortfolioDeploy
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Action: cloudformation:DescribeStacks
+            Resource: !Ref AWS::StackId
+          - Effect: Allow
+            Action: s3:ListBucket
+            Resource: !GetAtt SiteBucket.Arn
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:PutObject
+              - s3:DeleteObject
+            Resource: !Sub '${SiteBucket.Arn}/*'
+          - Effect: Allow
+            Action: cloudfront:CreateInvalidation
+            Resource: !Sub 'arn:${AWS::Partition}:cloudfront::${AWS::AccountId}:distribution/${Distribution}'
+
 Outputs:
   WebsiteUrl:
     Value: !Sub 'https://${DomainName}'
