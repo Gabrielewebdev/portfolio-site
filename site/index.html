@@ -203,20 +203,33 @@
         </article>
 
         <article aria-labelledby="serverless-title">
-          <span class="status">PIANIFICATO</span>
+          <span class="status">completato</span>
           <h3 id="serverless-title">02 / API Notes serverless</h3>
           <p>
-            API Python per creare, leggere ed eliminare note.
-            Infrastruttura prevista con Terraform,
-            test automatici e monitoraggio.
+            API Python con autenticazione IAM e paginazione:
+            API Gateway, Lambda e DynamoDB.
+            Infrastruttura gestita con Terraform e stato remoto su S3,
+            con deploy automatico tramite GitHub Actions e OIDC.
+          </p>
+          <p>
+            74 test automatici, verifiche sull'API AWS,
+            allarme CloudWatch verificato e prova di distruzione
+            e ricreazione completata. Pacchetto Lambda riproducibile
+            tra ambiente locale e CI.
           </p>
           <div class="tags">
             <span class="tag">Python</span>
+            <span class="tag">API Gateway</span>
             <span class="tag">Lambda</span>
             <span class="tag">DynamoDB</span>
             <span class="tag">Terraform</span>
+            <span class="tag">GitHub Actions</span>
+            <span class="tag">CloudWatch</span>
           </div>
-          <p class="project-link">Repository disponibile all'avvio.</p>
+          <a class="project-link"
+             href="https://github.com/Gabrielewebdev/notes-api-serverless">
+            Codice e documentazione ↗
+          </a>
         </article>
 
         <article aria-labelledby="ec2-title">
@@ -257,7 +270,7 @@
 
         <p>
           CloudFormation definisce l'infrastruttura.
-          La pipeline prevista usa GitHub Actions e un ruolo IAM
+          La pipeline usa GitHub Actions e un ruolo IAM
           assunto tramite OIDC, senza access key nei secrets.
         </p>
       </section>
