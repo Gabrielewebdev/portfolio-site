@@ -233,20 +233,38 @@
         </article>
 
         <article aria-labelledby="ec2-title">
-          <span class="status">PIANIFICATO</span>
+          <span class="status">completato</span>
           <h3 id="ec2-title">03 / API Notes su EC2</h3>
           <p>
-            La stessa API eseguita in container, con rete dedicata,
-            bilanciamento del traffico, Auto Scaling
-            e accesso amministrativo tramite Session Manager.
+            API FastAPI in container Docker su EC2, dietro un ALB HTTPS
+            e un Auto Scaling Group distribuito su due Availability Zone.
+            Terraform gestisce rete e infrastruttura; GitHub Actions
+            distribuisce immagini ECR tramite OIDC.
+          </p>
+          <p>
+            15 test automatici, deploy e rollback verificati,
+            sostituzione automatica delle istanze, scale-out reale sotto
+            carico CPU e recupero di una nota da backup DynamoDB.
+            Accesso amministrativo tramite SSM e chiave API in Parameter Store.
+          </p>
+          <p>
+            Ambiente distrutto dopo le prove per contenere i costi;
+            codice e procedure di ricreazione disponibili nel repository.
           </p>
           <div class="tags">
+            <span class="tag">FastAPI</span>
             <span class="tag">Docker</span>
             <span class="tag">EC2</span>
             <span class="tag">ALB</span>
+            <span class="tag">Auto Scaling</span>
             <span class="tag">Terraform</span>
+            <span class="tag">GitHub Actions</span>
+            <span class="tag">CloudWatch</span>
           </div>
-          <p class="project-link">Repository disponibile all'avvio.</p>
+          <a class="project-link"
+             href="https://github.com/Gabrielewebdev/notes-api-ec2">
+            Codice e documentazione ↗
+          </a>
         </article>
       </div>
 
